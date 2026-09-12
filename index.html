@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Doodh Bahi — milk ledger</title>
 <link rel="stylesheet" href="style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -14,38 +15,66 @@
     <button id="sign-in-btn" class="btn-primary">Sign in with Google</button>
   </div>
 
-  <div id="app" class="wrap" style="display:none">
-    <div class="top-row">
-      <button id="prev-month" aria-label="Previous month" class="nav-btn">&#8592;</button>
-      <span id="month-label" class="month-label"></span>
-      <button id="next-month" aria-label="Next month" class="nav-btn">&#8594;</button>
+  <div id="app" class="page" style="display:none">
+
+    <div class="header-row">
+      <h1>Doodh Bahi</h1>
+      <button id="sign-out-btn" class="link-btn">Sign out</button>
     </div>
 
-    <div id="weekday-row" class="weekday-row"></div>
-    <div id="calendar" class="calendar"></div>
+    <div class="layout">
 
-    <div class="day-section">
-      <div id="day-label" class="day-label"></div>
-      <div id="quick-values" class="quick-values"></div>
+      <div class="invoice-panel" id="invoice-panel">
+        <div class="invoice-header">
+          <span id="invoice-title" class="invoice-title"></span>
+          <button id="export-pdf-btn" class="link-btn no-print">Export PDF</button>
+        </div>
+        <table class="invoice-table">
+          <thead>
+            <tr><th>Date</th><th>Litres</th><th>Amount</th></tr>
+          </thead>
+          <tbody id="invoice-body"></tbody>
+          <tfoot>
+            <tr class="invoice-total-row">
+              <td>Total</td>
+              <td id="invoice-total-litres"></td>
+              <td id="invoice-total-amount"></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div id="invoice-empty" class="muted small" style="display:none">No entries logged yet this month.</div>
+        <div id="invoice-rate" class="muted small invoice-rate-note"></div>
+      </div>
+
+      <div class="entry-panel no-print">
+        <div class="top-row">
+          <button id="prev-month" aria-label="Previous month" class="nav-btn">&#8592;</button>
+          <span id="month-label" class="month-label"></span>
+          <button id="next-month" aria-label="Next month" class="nav-btn">&#8594;</button>
+        </div>
+
+        <div id="weekday-row" class="weekday-row"></div>
+        <div id="calendar" class="calendar"></div>
+
+        <div class="day-section">
+          <div id="day-label" class="day-label"></div>
+          <div id="quick-values" class="quick-values"></div>
+        </div>
+
+        <div id="error" class="error"></div>
+
+        <div class="footer-row">
+          <span id="rate-display" class="muted small link-btn"></span>
+          <span id="rate-edit" class="rate-edit" style="display:none">
+            Rate per litre &#8377;
+            <input id="rate-input" type="text" inputmode="decimal" />
+          </span>
+        </div>
+
+        <div id="loading" class="muted small" style="display:none">Loading…</div>
+      </div>
+
     </div>
-
-    <div class="totals-row">
-      <span id="total-litres" class="muted"></span>
-      <span id="total-amount" class="amount"></span>
-    </div>
-
-    <div id="error" class="error"></div>
-
-    <div class="footer-row">
-      <span id="rate-display" class="muted small link"></span>
-      <span id="rate-edit" class="rate-edit" style="display:none">
-        Rate per litre &#8377;
-        <input id="rate-input" type="text" inputmode="decimal" />
-      </span>
-      <button id="sign-out-btn" class="muted small link" style="float:right; border:none; background:none; cursor:pointer;">Sign out</button>
-    </div>
-
-    <div id="loading" class="muted small" style="display:none">Loading…</div>
   </div>
 
   <script type="module" src="app.js"></script>

@@ -1,37 +1,146 @@
 * { box-sizing: border-box; }
 
+:root {
+  --bg: #F4F9FA;
+  --surface: #FFFFFF;
+  --border: #DCE7E9;
+  --border-soft: #EAF1F2;
+  --text: #24373C;
+  --muted: #6B8285;
+  --muted-light: #9CB0B2;
+  --accent: #2E7D8C;
+  --accent-soft: #E4F1F2;
+  --total: #1F4B4F;
+}
+
 body {
   margin: 0;
-  background: #FBF7EF;
-  color: #25333B;
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Helvetica Neue', Arial, sans-serif;
 }
 
-.wrap {
-  max-width: 420px;
+.wrap, .page {
+  max-width: 900px;
   margin: 0 auto;
-  padding: 32px 20px 40px;
+  padding: 32px 20px 48px;
 }
 
 h1 {
   font-size: 20px;
-  font-weight: 500;
-  margin: 0 0 8px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--total);
 }
 
-.muted { color: #6B6656; font-size: 13px; }
+.muted { color: var(--muted); font-size: 13px; }
 .small { font-size: 12px; }
-.link { color: #A39D8B; }
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
 
 .btn-primary {
   margin-top: 16px;
-  border: 1px solid #DCD5C2;
-  background: #FFFFFF;
+  border: 1px solid var(--border);
+  background: var(--surface);
   border-radius: 8px;
   padding: 10px 18px;
   font-size: 14px;
-  color: #25333B;
+  color: var(--text);
   cursor: pointer;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.layout {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 24px;
+}
+
+@media (min-width: 720px) {
+  .layout { flex-direction: row; align-items: flex-start; }
+  .invoice-panel { flex: 1; position: sticky; top: 24px; }
+  .entry-panel { flex: 1; }
+}
+
+/* ---------- Invoice panel ---------- */
+
+.invoice-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
+}
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.invoice-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--total);
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.invoice-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0 0 8px;
+}
+
+.invoice-table th:last-child,
+.invoice-table td:last-child { text-align: right; }
+
+.invoice-table td {
+  padding: 7px 0;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text);
+}
+
+.invoice-total-row td {
+  padding-top: 12px;
+  border-top: 2px solid var(--total);
+  font-weight: 600;
+  color: var(--total);
+  font-size: 14px;
+}
+
+.invoice-rate-note { margin-top: 14px; }
+
+/* ---------- Entry panel ---------- */
+
+.entry-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
 }
 
 .top-row {
@@ -45,12 +154,12 @@ h1 {
   border: none;
   background: transparent;
   font-size: 15px;
-  color: #6B6656;
+  color: var(--muted);
   cursor: pointer;
   padding: 4px 8px;
 }
 
-.month-label { font-size: 15px; font-weight: 500; }
+.month-label { font-size: 15px; font-weight: 600; color: var(--total); }
 
 .weekday-row, .calendar {
   display: grid;
@@ -60,7 +169,7 @@ h1 {
 
 .weekday-row {
   font-size: 11px;
-  color: #A39D8B;
+  color: var(--muted-light);
   text-align: center;
   margin-bottom: 6px;
 }
@@ -72,22 +181,23 @@ h1 {
   border-radius: 8px;
   padding: 6px 0;
   font-size: 13px;
-  color: #25333B;
+  color: var(--text);
   background: transparent;
   cursor: pointer;
   text-align: center;
 }
 
-.day-cell.has-entry { background: #F0EBDD; }
-.day-cell.is-today { border-color: #DCD5C2; }
+.day-cell.has-entry { background: var(--accent-soft); }
+.day-cell.is-today { border-color: var(--border); }
 .day-cell.selected {
-  border-color: #B5652E;
-  background: #F6E9DE;
-  color: #B5652E;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
 }
 
-.day-section { margin-bottom: 20px; }
-.day-label { font-size: 13px; color: #6B6656; margin-bottom: 8px; }
+.day-section { margin-bottom: 16px; }
+.day-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
 
 .quick-values {
   display: flex;
@@ -97,9 +207,9 @@ h1 {
 }
 
 .chip {
-  border: 1px solid #DCD5C2;
+  border: 1px solid var(--border);
   background: transparent;
-  color: #25333B;
+  color: var(--text);
   border-radius: 999px;
   padding: 7px 16px;
   font-size: 14px;
@@ -107,20 +217,20 @@ h1 {
 }
 
 .chip.active {
-  border-color: #B5652E;
-  background: #F6E9DE;
-  color: #B5652E;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .chip.other {
   border-style: dashed;
-  color: #6B6656;
+  color: var(--muted);
 }
 
 .chip-clear {
   border: none;
   background: transparent;
-  color: #A39D8B;
+  color: var(--muted-light);
   font-size: 13px;
   cursor: pointer;
   padding: 7px 4px;
@@ -129,37 +239,33 @@ h1 {
 #manual-input {
   width: 70px;
   border: none;
-  border-bottom: 1px solid #B5652E;
+  border-bottom: 1px solid var(--accent);
   background: transparent;
   font-size: 15px;
   padding: 7px 2px;
   outline: none;
-  color: #25333B;
+  color: var(--text);
 }
 
-.totals-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 10px 0;
-  border-top: 1px solid #EAE4D4;
-  border-bottom: 1px solid #EAE4D4;
-  margin-bottom: 16px;
-}
+.error { font-size: 12px; color: #B23B3B; margin: 12px 0; }
 
-.amount { font-size: 19px; color: #B5652E; }
-
-.error { font-size: 12px; color: #A32D2D; margin-bottom: 12px; }
-
-.footer-row { font-size: 12px; color: #A39D8B; }
+.footer-row { font-size: 12px; color: var(--muted-light); margin-top: 4px; }
 
 #rate-input {
   width: 44px;
   border: none;
-  border-bottom: 1px solid #DCD5C2;
+  border-bottom: 1px solid var(--border);
   background: transparent;
   font-size: 12px;
   outline: none;
-  color: #25333B;
+  color: var(--text);
   margin-left: 4px;
+}
+
+/* ---------- Print / PDF ---------- */
+
+@media print {
+  body { background: #FFFFFF; }
+  .no-print { display: none !important; }
+  .invoice-panel { border: none; padding: 0; }
 }

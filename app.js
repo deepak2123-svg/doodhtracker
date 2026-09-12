@@ -133,15 +133,32 @@ function render() {
   if (clearBtn) clearBtn.addEventListener('click', () => applyValue(''));
   el('other-btn').addEventListener('click', showManualInput);
 
-  let totalLitres = 0;
-  Object.values(entries).forEach((v) => {
-    const n = parseFloat(v);
-    if (!isNaN(n) && n > 0) totalLitres += n;
-  });
-  el('total-litres').textContent = `${fmtLitres(totalLitres)} L this month`;
-  el('total-amount').textContent = fmtRupees(totalLitres * rate);
-
   el('rate-display').textContent = `Rate: \u20B9${fmtLitres(rate)} / litre \u00B7 edit`;
+
+  renderInvoice();
+}
+
+function renderInvoice() {
+  el('invoice-title').textContent = `${MONTH_NAMES[month]} ${year}`;
+
+  const days = Object.keys(entries)
+    .map(Number)
+    .filter((d) => parseFloat(entries[d]) > 0)
+    .sort((a, b) => a - b);
+
+  let totalLitres = 0;
+  const rows = days.map((d) => {
+    const litres = parseFloat(entries[d]);
+    totalLitres += litres;
+    const amount = litres * rate;
+    return `<tr><td>${pad(d)} ${weekdayShort(year, month, d)}</td><td>${fmtLitres(litres)} L</td><td>${fmtRupees(amount)}</td></tr>`;
+  });
+
+  el('invoice-body').innerHTML = rows.join('');
+  el('invoice-empty').style.display = days.length === 0 ? 'block' : 'none';
+  el('invoice-total-litres').textContent = `${fmtLitres(totalLitres)} L`;
+  el('invoice-total-amount').textContent = fmtRupees(totalLitres * rate);
+  el('invoice-rate').textContent = `At \u20B9${fmtLitres(rate)} / litre`;
 }
 
 function showManualInput() {
@@ -181,10 +198,20 @@ async function goToMonth(delta) {
   render();
 }
 
+function exportPdf() {
+  const filename = `milk-invoice-${monthKey(year, month)}.pdf`;
+  window.html2pdf().from(el('invoice-panel')).set({
+    filename,
+    margin: 12,
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).save();
+}
+
 // ---------- Wiring ----------
 
 el('prev-month').addEventListener('click', () => goToMonth(-1));
 el('next-month').addEventListener('click', () => goToMonth(1));
+el('export-pdf-btn').addEventListener('click', exportPdf);
 
 el('rate-display').addEventListener('click', () => {
   el('rate-display').style.display = 'none';

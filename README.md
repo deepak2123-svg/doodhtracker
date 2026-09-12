@@ -70,6 +70,11 @@ Firebase only allows sign-in from domains you've approved:
 
 Open your GitHub Pages URL, sign in with Google, and start logging.
 Tap a date on the calendar, then tap 2/3/4/5 litres or "other" for a
-different amount. The monthly total and amount update instantly and sync
-to Firestore, so the same login on your phone or another computer shows
-the same data.
+different amount. The invoice panel builds itself from what you log —
+one line per day, with a grand total at the bottom — and updates
+instantly. Everything syncs to Firestore, so the same login on your
+phone or another computer shows the same data.
+
+Click **Export PDF** on the invoice panel any time to download that
+month's invoice as a PDF (via the html2pdf.js library, loaded from a
+CDN — no extra setup needed).
