@@ -4,10 +4,11 @@
 // actually protect your data (see firestore.rules in this folder).
 
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyD8IczmHopkWqjNhjR7RYoHdZTLK5YTH70",
+  authDomain: "doodhtracker.firebaseapp.com",
+  projectId: "doodhtracker",
+  storageBucket: "doodhtracker.firebasestorage.app",
+  messagingSenderId: "331257666156",
+  appId: "1:331257666156:web:4402e520380ffa3a50d649",
+  measurementId: "G-XYQKJH2HSX"
 };
