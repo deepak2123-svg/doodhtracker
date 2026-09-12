@@ -3,7 +3,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc
+  getFirestore, doc, getDoc, setDoc, collection, getDocs
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
@@ -22,7 +22,9 @@ let month = today.getMonth();
 let selectedDay = today.getDate();
 let entries = {};
 let rate = 60;
+let dudhiyaName = '';
 let uid = null;
+let activeTab = 'ledger';
 
 const el = (id) => document.getElementById(id);
 
@@ -50,20 +52,22 @@ function showLoading(v) { el('loading').style.display = v ? 'block' : 'none'; }
 async function loadRate() {
   try {
     const snap = await getDoc(doc(db, 'users', uid, 'settings', 'main'));
-    if (snap.exists() && typeof snap.data().rate === 'number') {
-      rate = snap.data().rate;
+    if (snap.exists()) {
+      const data = snap.data();
+      if (typeof data.rate === 'number') rate = data.rate;
+      if (typeof data.dudhiyaName === 'string') dudhiyaName = data.dudhiyaName;
     }
   } catch {
     showError("Couldn't load your rate. Check your connection.");
   }
 }
 
-async function saveRate(val) {
+async function saveSettings(rateVal, dudhiyaVal) {
   try {
-    await setDoc(doc(db, 'users', uid, 'settings', 'main'), { rate: val }, { merge: true });
+    await setDoc(doc(db, 'users', uid, 'settings', 'main'), { rate: rateVal, dudhiyaName: dudhiyaVal }, { merge: true });
     showError('');
   } catch {
-    showError("Couldn't save rate. Try again.");
+    showError("Couldn't save settings. Try again.");
   }
 }
 
@@ -88,11 +92,41 @@ async function saveMonth(y, m) {
   }
 }
 
-// ---------- Rendering ----------
+async function loadAllTimeStats() {
+  try {
+    const snapshot = await getDocs(collection(db, 'users', uid, 'months'));
+    let litres = 0;
+    snapshot.forEach((d) => {
+      const monthEntries = d.data().entries || {};
+      Object.values(monthEntries).forEach((v) => {
+        const n = parseFloat(v);
+        if (!isNaN(n) && n > 0) litres += n;
+      });
+    });
+    return { litres, amount: litres * rate };
+  } catch {
+    return { litres: 0, amount: 0 };
+  }
+}
+
+// ---------- Tab switching ----------
+
+function switchTab(tab) {
+  activeTab = tab;
+  ['ledger', 'pricing', 'profile'].forEach((t) => {
+    el(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-tab').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  if (tab === 'pricing') renderPricing();
+  if (tab === 'profile') renderProfile();
+}
+
+// ---------- Rendering: Ledger ----------
 
 function render() {
   el('month-label').textContent = `${MONTH_NAMES[month]} ${year}`;
-
   el('weekday-row').innerHTML = WEEKDAY_LABELS.map((w) => `<div>${w}</div>`).join('');
 
   const totalDays = daysInMonth(year, month);
@@ -133,13 +167,17 @@ function render() {
   if (clearBtn) clearBtn.addEventListener('click', () => applyValue(''));
   el('other-btn').addEventListener('click', showManualInput);
 
-  el('rate-display').textContent = `Rate: \u20B9${fmtLitres(rate)} / litre \u00B7 edit`;
-
   renderInvoice();
 }
 
 function renderInvoice() {
   el('invoice-title').textContent = `${MONTH_NAMES[month]} ${year}`;
+
+  const user = auth.currentUser;
+  el('meta-customer').textContent = (user && (user.displayName || user.email)) || '—';
+  el('meta-dudhiya').textContent = dudhiyaName || '—';
+  el('meta-period').textContent = `${MONTH_NAMES[month]} ${year}`;
+  el('meta-generated').textContent = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const days = Object.keys(entries)
     .map(Number)
@@ -158,7 +196,12 @@ function renderInvoice() {
   el('invoice-empty').style.display = days.length === 0 ? 'block' : 'none';
   el('invoice-total-litres').textContent = `${fmtLitres(totalLitres)} L`;
   el('invoice-total-amount').textContent = fmtRupees(totalLitres * rate);
-  el('invoice-rate').textContent = `At \u20B9${fmtLitres(rate)} / litre`;
+
+  const totalDaysInMonth = daysInMonth(year, month);
+  const avg = days.length > 0 ? totalLitres / days.length : 0;
+  el('invoice-days-logged').textContent = `${days.length} of ${totalDaysInMonth} days logged`;
+  el('invoice-avg').textContent = days.length > 0 ? `Average ${fmtLitres(avg)} L / logged day` : '';
+  el('invoice-rate').textContent = `Rate: \u20B9${fmtLitres(rate)} / litre`;
 }
 
 function showManualInput() {
@@ -175,8 +218,6 @@ function showManualInput() {
   input.addEventListener('blur', commit);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
 }
-
-// ---------- Actions ----------
 
 function applyValue(value) {
   const cleaned = String(value).replace(/[^0-9.]/g, '');
@@ -200,38 +241,63 @@ async function goToMonth(delta) {
 
 function exportPdf() {
   const filename = `milk-invoice-${monthKey(year, month)}.pdf`;
+  const btn = el('export-pdf-btn');
+  btn.style.visibility = 'hidden';
   window.html2pdf().from(el('invoice-panel')).set({
     filename,
     margin: 12,
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).save();
+  }).save().then(() => {
+    btn.style.visibility = 'visible';
+  });
+}
+
+// ---------- Rendering: Pricing ----------
+
+function renderPricing() {
+  el('pricing-rate-value').textContent = fmtLitres(rate);
+  el('rate-input').value = String(rate);
+  el('dudhiya-input').value = dudhiyaName;
+}
+
+async function saveRateFromPricing() {
+  const cleaned = el('rate-input').value.replace(/[^0-9.]/g, '');
+  const val = cleaned === '' ? 0 : parseFloat(cleaned);
+  rate = val;
+  dudhiyaName = el('dudhiya-input').value.trim();
+  await saveSettings(val, dudhiyaName);
+  renderPricing();
+  renderInvoice();
+}
+
+// ---------- Rendering: Profile ----------
+
+function renderProfile() {
+  const user = auth.currentUser;
+  if (!user) return;
+  el('profile-photo').src = user.photoURL || '';
+  el('profile-name').textContent = user.displayName || 'Milk ledger user';
+  el('profile-email').textContent = user.email || '';
+  el('profile-total-litres').textContent = '…';
+  el('profile-total-amount').textContent = '…';
+  loadAllTimeStats().then(({ litres, amount }) => {
+    el('profile-total-litres').textContent = `${fmtLitres(litres)} L`;
+    el('profile-total-amount').textContent = fmtRupees(amount);
+  });
 }
 
 // ---------- Wiring ----------
 
+document.querySelectorAll('.nav-tab').forEach((btn) => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
 el('prev-month').addEventListener('click', () => goToMonth(-1));
 el('next-month').addEventListener('click', () => goToMonth(1));
 el('export-pdf-btn').addEventListener('click', exportPdf);
-
-el('rate-display').addEventListener('click', () => {
-  el('rate-display').style.display = 'none';
-  el('rate-edit').style.display = 'inline';
-  const input = el('rate-input');
-  input.value = String(rate);
-  input.focus();
-  input.select();
-});
-
-el('rate-input').addEventListener('blur', async () => {
-  const cleaned = el('rate-input').value.replace(/[^0-9.]/g, '');
-  const val = cleaned === '' ? 0 : parseFloat(cleaned);
-  rate = val;
-  await saveRate(val);
-  el('rate-edit').style.display = 'none';
-  el('rate-display').style.display = 'inline';
-  render();
-});
-el('rate-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') el('rate-input').blur(); });
+el('save-rate-btn').addEventListener('click', saveRateFromPricing);
+el('rate-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRateFromPricing(); });
+el('dudhiya-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRateFromPricing(); });
 
 el('sign-in-btn').addEventListener('click', async () => {
   try {
@@ -251,6 +317,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadRate();
     await loadMonth(year, month);
     render();
+    switchTab('ledger');
   } else {
     uid = null;
     el('app').style.display = 'none';

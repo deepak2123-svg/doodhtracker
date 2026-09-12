@@ -68,13 +68,17 @@ Firebase only allows sign-in from domains you've approved:
 
 ## Using it
 
-Open your GitHub Pages URL, sign in with Google, and start logging.
-Tap a date on the calendar, then tap 2/3/4/5 litres or "other" for a
-different amount. The invoice panel builds itself from what you log —
-one line per day, with a grand total at the bottom — and updates
-instantly. Everything syncs to Firestore, so the same login on your
-phone or another computer shows the same data.
+Open your GitHub Pages URL, sign in with Google. There's a bottom nav
+bar with three tabs:
 
-Click **Export PDF** on the invoice panel any time to download that
-month's invoice as a PDF (via the html2pdf.js library, loaded from a
-CDN — no extra setup needed).
+- **Ledger** — tap a date on the calendar, then tap 2/3/4/5 litres or
+  "other" for a different amount. The invoice panel builds itself from
+  what you log, with a grand total at the bottom, and an **Export PDF**
+  button to download that month's invoice.
+- **Pricing** — set your rate per litre, and your dudhiya's name (shows
+  on the invoice). Applies to every month's calculation going forward.
+- **Profile** — your Google account info, all-time litres and spend
+  across every month you've logged, and sign out.
+
+Everything syncs to Firestore, so the same login on your phone or
+another computer shows the same data.
