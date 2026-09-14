@@ -22,6 +22,7 @@ let month = today.getMonth();
 let selectedDay = today.getDate();
 let entries = {};
 let rate = 60;
+let rateHistory = []; // [{ date: 'YYYY-MM-DD', rate: number }, ...] sorted ascending by date
 let dudhiyaName = '';
 let uid = null;
 let activeTab = 'ledger';
@@ -41,6 +42,30 @@ function fmtLitres(n) {
 function weekdayShort(y, m, d) {
   return new Date(y, m, d).toLocaleDateString('en-IN', { weekday: 'short' });
 }
+function dateStr(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
+function fmtDateReadable(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function entryForDate(iso) {
+  let applicable = null;
+  for (const entry of rateHistory) {
+    if (entry.date <= iso && (!applicable || entry.date > applicable.date)) {
+      applicable = entry;
+    }
+  }
+  return applicable;
+}
+
+function rateForDate(iso) {
+  const entry = entryForDate(iso);
+  return entry ? entry.rate : rate;
+}
+
+function currentRate() {
+  return rateForDate(dateStr(today.getFullYear(), today.getMonth(), today.getDate()));
+}
 function isCurrentMonth() { return year === today.getFullYear() && month === today.getMonth(); }
 function isToday(d) { return isCurrentMonth() && d === today.getDate(); }
 
@@ -56,15 +81,26 @@ async function loadRate() {
       const data = snap.data();
       if (typeof data.rate === 'number') rate = data.rate;
       if (typeof data.dudhiyaName === 'string') dudhiyaName = data.dudhiyaName;
+      if (Array.isArray(data.rateHistory)) {
+        rateHistory = data.rateHistory.slice().sort((a, b) => a.date.localeCompare(b.date));
+      }
     }
   } catch {
     showError("Couldn't load your rate. Check your connection.");
   }
 }
 
-async function saveSettings(rateVal, dudhiyaVal) {
+async function addRateChange(newRate, effectiveDate, dudhiyaVal) {
+  const next = rateHistory.filter((e) => e.date !== effectiveDate);
+  next.push({ date: effectiveDate, rate: newRate });
+  next.sort((a, b) => a.date.localeCompare(b.date));
+  rateHistory = next;
+  rate = newRate; // fallback / most-recent value for legacy display
+  dudhiyaName = dudhiyaVal;
   try {
-    await setDoc(doc(db, 'users', uid, 'settings', 'main'), { rate: rateVal, dudhiyaName: dudhiyaVal }, { merge: true });
+    await setDoc(doc(db, 'users', uid, 'settings', 'main'), {
+      rate: newRate, dudhiyaName: dudhiyaVal, rateHistory: next
+    }, { merge: true });
     showError('');
   } catch {
     showError("Couldn't save settings. Try again.");
@@ -96,14 +132,19 @@ async function loadAllTimeStats() {
   try {
     const snapshot = await getDocs(collection(db, 'users', uid, 'months'));
     let litres = 0;
-    snapshot.forEach((d) => {
-      const monthEntries = d.data().entries || {};
-      Object.values(monthEntries).forEach((v) => {
+    let amount = 0;
+    snapshot.forEach((docSnap) => {
+      const [y, m] = docSnap.id.split('-').map(Number);
+      const monthEntries = docSnap.data().entries || {};
+      Object.entries(monthEntries).forEach(([dayStr, v]) => {
         const n = parseFloat(v);
-        if (!isNaN(n) && n > 0) litres += n;
+        if (!isNaN(n) && n > 0) {
+          litres += n;
+          amount += n * rateForDate(dateStr(y, m - 1, parseInt(dayStr, 10)));
+        }
       });
     });
-    return { litres, amount: litres * rate };
+    return { litres, amount };
   } catch {
     return { litres: 0, amount: 0 };
   }
@@ -185,23 +226,30 @@ function renderInvoice() {
     .sort((a, b) => a - b);
 
   let totalLitres = 0;
+  let totalAmount = 0;
+  const ratesUsed = new Set();
   const rows = days.map((d) => {
     const litres = parseFloat(entries[d]);
+    const dayRate = rateForDate(dateStr(year, month, d));
+    const amount = litres * dayRate;
     totalLitres += litres;
-    const amount = litres * rate;
-    return `<tr><td>${pad(d)} ${weekdayShort(year, month, d)}</td><td>${fmtLitres(litres)} L</td><td>${fmtRupees(amount)}</td></tr>`;
+    totalAmount += amount;
+    ratesUsed.add(dayRate);
+    return `<tr><td>${pad(d)} ${weekdayShort(year, month, d)}</td><td>${fmtLitres(litres)} L</td><td>&#8377;${fmtLitres(dayRate)}</td><td>${fmtRupees(amount)}</td></tr>`;
   });
 
   el('invoice-body').innerHTML = rows.join('');
   el('invoice-empty').style.display = days.length === 0 ? 'block' : 'none';
   el('invoice-total-litres').textContent = `${fmtLitres(totalLitres)} L`;
-  el('invoice-total-amount').textContent = fmtRupees(totalLitres * rate);
+  el('invoice-total-amount').textContent = fmtRupees(totalAmount);
 
   const totalDaysInMonth = daysInMonth(year, month);
   const avg = days.length > 0 ? totalLitres / days.length : 0;
   el('invoice-days-logged').textContent = `${days.length} of ${totalDaysInMonth} days logged`;
   el('invoice-avg').textContent = days.length > 0 ? `Average ${fmtLitres(avg)} L / logged day` : '';
-  el('invoice-rate').textContent = `Rate: \u20B9${fmtLitres(rate)} / litre`;
+  el('invoice-rate').textContent = ratesUsed.size > 1
+    ? `Rate changed mid-month \u2014 see per-day rate above`
+    : `Rate: \u20B9${fmtLitres(currentRate())} / litre`;
 }
 
 function showManualInput() {
@@ -255,17 +303,32 @@ function exportPdf() {
 // ---------- Rendering: Pricing ----------
 
 function renderPricing() {
-  el('pricing-rate-value').textContent = fmtLitres(rate);
-  el('rate-input').value = String(rate);
+  el('pricing-rate-value').textContent = fmtLitres(currentRate());
+  el('rate-input').value = '';
+  const todayIso = dateStr(today.getFullYear(), today.getMonth(), today.getDate());
+  el('rate-effective-date').value = todayIso;
+  el('rate-effective-date').max = todayIso;
   el('dudhiya-input').value = dudhiyaName;
+
+  const sorted = rateHistory.slice().sort((a, b) => b.date.localeCompare(a.date));
+  if (sorted.length === 0) {
+    el('rate-history-list').innerHTML = `<div class="muted small">No rate changes recorded yet — the rate above is your starting rate.</div>`;
+  } else {
+    const currentEntry = entryForDate(todayIso);
+    el('rate-history-list').innerHTML = sorted.map((e) => {
+      const isCurrent = currentEntry && e.date === currentEntry.date;
+      return `<div class="rate-history-row${isCurrent ? ' current-rate' : ''}"><span>From ${fmtDateReadable(e.date)}</span><span>&#8377;${fmtLitres(e.rate)} / L</span></div>`;
+    }).join('');
+  }
 }
 
 async function saveRateFromPricing() {
   const cleaned = el('rate-input').value.replace(/[^0-9.]/g, '');
-  const val = cleaned === '' ? 0 : parseFloat(cleaned);
-  rate = val;
-  dudhiyaName = el('dudhiya-input').value.trim();
-  await saveSettings(val, dudhiyaName);
+  if (cleaned === '') { showError('Enter a rate before saving.'); return; }
+  const val = parseFloat(cleaned);
+  const effectiveDate = el('rate-effective-date').value || dateStr(today.getFullYear(), today.getMonth(), today.getDate());
+  const dudhiyaVal = el('dudhiya-input').value.trim();
+  await addRateChange(val, effectiveDate, dudhiyaVal);
   renderPricing();
   renderInvoice();
 }

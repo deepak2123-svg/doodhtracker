@@ -39,13 +39,14 @@
             </div>
             <table class="invoice-table">
               <thead>
-                <tr><th>Date</th><th>Litres</th><th>Amount</th></tr>
+                <tr><th>Date</th><th>Litres</th><th>Rate</th><th>Amount</th></tr>
               </thead>
               <tbody id="invoice-body"></tbody>
               <tfoot>
                 <tr class="invoice-total-row">
                   <td>Total</td>
                   <td id="invoice-total-litres"></td>
+                  <td></td>
                   <td id="invoice-total-amount"></td>
                 </tr>
               </tfoot>
@@ -90,10 +91,16 @@
             <div class="pricing-amount">&#8377;<span id="pricing-rate-value"></span> <span class="muted">/ litre</span></div>
           </div>
           <div class="pricing-edit-row">
-            <label for="rate-input" class="muted small">Set new rate</label>
+            <label for="rate-input" class="muted small">New rate</label>
             <div class="pricing-input-row">
               <span class="muted">&#8377;</span>
               <input id="rate-input" type="text" inputmode="decimal" />
+            </div>
+          </div>
+          <div class="pricing-edit-row">
+            <label for="rate-effective-date" class="muted small">Effective from</label>
+            <div class="pricing-input-row">
+              <input id="rate-effective-date" type="date" />
             </div>
           </div>
           <div class="pricing-edit-row">
@@ -104,11 +111,15 @@
           </div>
           <button id="save-rate-btn" class="btn-primary" style="width:100%;">Save</button>
           <p class="muted small pricing-note">
-            This rate is used to calculate every day's amount and the monthly
-            total on your invoice. Changing it applies to all months going
-            forward — past invoices you've already exported as PDF stay as
-            they were.
+            Milkman changed the price mid-month? Just add the new rate with
+            the date it started. Days before that date keep billing at the
+            old rate, days from that date on use the new one — all in the
+            same month's invoice.
           </p>
+          <div class="pricing-history">
+            <div class="muted small" style="margin-bottom:8px;">Rate history</div>
+            <div id="rate-history-list"></div>
+          </div>
         </div>
       </div>
 

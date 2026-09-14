@@ -242,6 +242,18 @@ h1 { font-size: 20px; font-weight: 600; margin: 0; color: var(--total); }
 }
 .pricing-note { line-height: 1.5; }
 
+.pricing-history { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-soft); }
+
+.rate-history-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.rate-history-row.current-rate { color: var(--accent); font-weight: 600; }
+
 /* ---------- Profile tab ---------- */
 
 .profile-card { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
