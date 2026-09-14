@@ -1,4 +1,4 @@
-# Doodh Bahi — milk ledger
+# Doodh Ka Hisaab — milk ledger
 
 A small static site for logging daily milk quantity and seeing the monthly
 expense. Data is stored in Firebase (Google account) so it follows you
@@ -73,12 +73,27 @@ bar with three tabs:
 
 - **Ledger** — tap a date on the calendar, then tap 2/3/4/5 litres or
   "other" for a different amount. The invoice panel builds itself from
-  what you log, with a grand total at the bottom, and an **Export PDF**
-  button to download that month's invoice.
-- **Pricing** — set your rate per litre, and your dudhiya's name (shows
-  on the invoice). Applies to every month's calculation going forward.
+  what you log, with a grand total at the bottom, and **Export PDF** /
+  **Export Excel** buttons to download that month's invoice as a PDF or
+  an `.xlsx` file.
+- **Pricing** — set your rate per litre along with the date it takes
+  effect, and your dudhiya's name (shows on the invoice). If your
+  milkman changes the price mid-month, just add the new rate with the
+  date it started — days before that date keep the old rate, days from
+  then on use the new one, all correctly split within the same month's
+  invoice. Your rate history is listed below the form.
 - **Profile** — your Google account info, all-time litres and spend
-  across every month you've logged, and sign out.
+  across every month you've logged, a small bar chart of your last 6
+  months' spend, a Light/Dark/System appearance toggle, and sign out.
 
 Everything syncs to Firestore, so the same login on your phone or
 another computer shows the same data.
+
+The site follows your phone or browser's light/dark setting
+automatically, and gives a light haptic tap on supported phones when
+you log a day, switch tabs, or save a rate change. You can override the
+automatic theme any time from the Light/Dark/System toggle on the
+Profile tab — that choice is remembered on that device.
+
+Cleared a day by mistake? A brief "Undo" toast appears at the bottom
+for a few seconds after clearing an entry.
