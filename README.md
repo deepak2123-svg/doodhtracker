@@ -1,4 +1,4 @@
-# Doodh Bahi — milk ledger
+# Doodh Ka Hisaab — milk ledger
 
 A small static site for logging daily milk quantity and seeing the monthly
 expense. Data is stored in Firebase (Google account) so it follows you

@@ -250,6 +250,7 @@ function renderInvoice() {
   el('invoice-rate').textContent = ratesUsed.size > 1
     ? `Rate changed mid-month \u2014 see per-day rate above`
     : `Rate: \u20B9${fmtLitres(currentRate())} / litre`;
+  el('progress-fill').style.width = `${Math.min(100, (days.length / totalDaysInMonth) * 100)}%`;
 }
 
 function showManualInput() {
@@ -310,14 +311,18 @@ function renderPricing() {
   el('rate-effective-date').max = todayIso;
   el('dudhiya-input').value = dudhiyaName;
 
-  const sorted = rateHistory.slice().sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = rateHistory.slice().sort((a, b) => a.date.localeCompare(b.date));
   if (sorted.length === 0) {
-    el('rate-history-list').innerHTML = `<div class="muted small">No rate changes recorded yet — the rate above is your starting rate.</div>`;
+    el('rate-history-list').innerHTML = `<div class="timeline-item"><div class="timeline-date">Start</div><div class="timeline-dot"></div><div class="timeline-rate">&#8377;${fmtLitres(rate)}</div></div>`;
   } else {
     const currentEntry = entryForDate(todayIso);
     el('rate-history-list').innerHTML = sorted.map((e) => {
       const isCurrent = currentEntry && e.date === currentEntry.date;
-      return `<div class="rate-history-row${isCurrent ? ' current-rate' : ''}"><span>From ${fmtDateReadable(e.date)}</span><span>&#8377;${fmtLitres(e.rate)} / L</span></div>`;
+      return `<div class="timeline-item${isCurrent ? ' current' : ''}">
+        <div class="timeline-date">${fmtDateReadable(e.date)}</div>
+        <div class="timeline-dot"></div>
+        <div class="timeline-rate">&#8377;${fmtLitres(e.rate)}</div>
+      </div>`;
     }).join('');
   }
 }
