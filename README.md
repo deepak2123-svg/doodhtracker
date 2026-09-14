@@ -1,4 +1,4 @@
-# Doodh Ka Hisaab — milk ledger
+# Doodh Bahi — milk ledger
 
 A small static site for logging daily milk quantity and seeing the monthly
 expense. Data is stored in Firebase (Google account) so it follows you
@@ -75,12 +75,8 @@ bar with three tabs:
   "other" for a different amount. The invoice panel builds itself from
   what you log, with a grand total at the bottom, and an **Export PDF**
   button to download that month's invoice.
-- **Pricing** — set your rate per litre along with the date it takes
-  effect, and your dudhiya's name (shows on the invoice). If your
-  milkman changes the price mid-month, just add the new rate with the
-  date it started — days before that date keep the old rate, days from
-  then on use the new one, all correctly split within the same month's
-  invoice. Your rate history is listed below the form.
+- **Pricing** — set your rate per litre, and your dudhiya's name (shows
+  on the invoice). Applies to every month's calculation going forward.
 - **Profile** — your Google account info, all-time litres and spend
   across every month you've logged, and sign out.
 
