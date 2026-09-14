@@ -468,7 +468,7 @@ function renderMonthsChart(byMonth) {
     while (m < 0) { m += 12; y -= 1; }
     const key = monthKey(y, m);
     const data = byMonth[key] || { litres: 0, amount: 0 };
-    months.push({ key, y, m, amount: data.amount });
+    months.push({ key, y, m, amount: data.amount, litres: data.litres });
   }
   const max = Math.max(1, ...months.map((mo) => mo.amount));
   el('months-chart').innerHTML = months.map((mo) => {
@@ -479,6 +479,7 @@ function renderMonthsChart(byMonth) {
       <span class="month-bar-value">${mo.amount > 0 ? fmtRupees(mo.amount) : ''}</span>
       <div class="month-bar" style="height:${heightPct}%"></div>
       <span class="month-bar-label">${shortLabel}</span>
+      <span class="month-bar-litres">${mo.litres > 0 ? `${fmtLitres(mo.litres)} L` : ''}</span>
     </div>`;
   }).join('');
 }

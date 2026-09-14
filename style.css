@@ -6,6 +6,7 @@ html {
 * { box-sizing: border-box; }
 
 :root {
+  color-scheme: light;
   --bg: #F4F9FA;
   --surface: #FFFFFF;
   --border: #DCE7E9;
@@ -23,6 +24,7 @@ html {
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --bg: #16211F;
     --surface: #1D2B29;
     --border: #2C3E3B;
@@ -40,6 +42,7 @@ html {
 }
 
 html[data-theme="light"] {
+  color-scheme: light;
   --bg: #F4F9FA;
   --surface: #FFFFFF;
   --border: #DCE7E9;
@@ -56,6 +59,7 @@ html[data-theme="light"] {
 }
 
 html[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #16211F;
   --surface: #1D2B29;
   --border: #2C3E3B;
@@ -316,6 +320,7 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
   border-radius: 8px;
   padding: 9px 10px;
   font-size: 14px;
+  background: var(--surface);
   color: var(--text);
   outline: none;
 }
@@ -412,7 +417,7 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  height: 120px;
+  height: 140px;
 }
 
 .month-bar-col {
@@ -438,6 +443,8 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
 .month-bar-col.is-current .month-bar { background: var(--accent); }
 
 .month-bar-label { font-size: 10px; color: var(--muted-light); margin-top: 6px; }
+
+.month-bar-litres { font-size: 10px; color: var(--muted); margin-top: 1px; }
 
 .profile-appearance { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border-soft); }
 
