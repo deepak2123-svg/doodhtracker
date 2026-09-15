@@ -14,7 +14,7 @@ const provider = new GoogleAuthProvider();
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const WEEKDAY_LABELS = ['S','M','T','W','T','F','S'];
-const QUICK_VALUES = ['2', '3', '4', '5'];
+const DEFAULT_QUICK_VALUES = ['2', '3', '4', '5']; // starter chips for a brand-new home; fully removable after
 
 const today = new Date();
 let year = today.getFullYear();
@@ -24,7 +24,7 @@ let entries = {};
 let rate = 60;
 let rateHistory = []; // [{ date: 'YYYY-MM-DD', rate: number }, ...] sorted ascending by date
 let dudhiyaName = '';
-let customQuickValues = []; // extra litre amounts pinned by the user, per home
+let quickValues = []; // this home's tappable litre chips — starts from DEFAULT_QUICK_VALUES, fully editable
 let uid = null;
 let activeTab = 'ledger';
 let homes = [];
@@ -150,7 +150,8 @@ async function migrateLegacyDataIfNeeded() {
       if (Array.isArray(d.rateHistory)) legacyHistory = d.rateHistory;
     }
     const newHomeRef = await addDoc(collection(db, 'users', uid, 'homes'), {
-      name: 'My Home', dudhiyaName: legacyDudhiya, rate: legacyRate, rateHistory: legacyHistory
+      name: 'My Home', dudhiyaName: legacyDudhiya, rate: legacyRate, rateHistory: legacyHistory,
+      quickValues: DEFAULT_QUICK_VALUES.slice()
     });
     const legacyMonthsSnap = await getDocs(collection(db, 'users', uid, 'months'));
     for (const m of legacyMonthsSnap.docs) {
@@ -169,7 +170,9 @@ async function loadHomes() {
   }
   if (snap.empty) {
     // No legacy data either — brand new user, create a starter home.
-    await addDoc(collection(db, 'users', uid, 'homes'), { name: 'My Home', dudhiyaName: '', rate: 60, rateHistory: [] });
+    await addDoc(collection(db, 'users', uid, 'homes'), {
+      name: 'My Home', dudhiyaName: '', rate: 60, rateHistory: [], quickValues: DEFAULT_QUICK_VALUES.slice()
+    });
     snap = await getDocs(collection(db, 'users', uid, 'homes'));
   }
   homes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -184,7 +187,7 @@ async function switchHome(homeId) {
   rateHistory = Array.isArray(home.rateHistory)
     ? home.rateHistory.slice().sort((a, b) => a.date.localeCompare(b.date))
     : [];
-  customQuickValues = Array.isArray(home.quickValues) ? home.quickValues.slice() : [];
+  quickValues = Array.isArray(home.quickValues) ? home.quickValues.slice() : DEFAULT_QUICK_VALUES.slice();
   selectedDay = isCurrentMonth() ? today.getDate() : 1;
   closeHomeMenu();
   renderHomeBar();
@@ -197,9 +200,9 @@ async function addHome(name) {
   if (!trimmed) return;
   vibrate(12);
   const ref = await addDoc(collection(db, 'users', uid, 'homes'), {
-    name: trimmed, dudhiyaName: '', rate: 60, rateHistory: []
+    name: trimmed, dudhiyaName: '', rate: 60, rateHistory: [], quickValues: DEFAULT_QUICK_VALUES.slice()
   });
-  homes.push({ id: ref.id, name: trimmed, dudhiyaName: '', rate: 60, rateHistory: [] });
+  homes.push({ id: ref.id, name: trimmed, dudhiyaName: '', rate: 60, rateHistory: [], quickValues: DEFAULT_QUICK_VALUES.slice() });
   await switchHome(ref.id);
 }
 
@@ -254,35 +257,32 @@ async function addRateChange(newRate, effectiveDate, dudhiyaVal) {
 }
 
 function getAllQuickValues() {
-  const custom = customQuickValues.filter(
-    (v) => !QUICK_VALUES.some((base) => parseFloat(base) === parseFloat(v))
-  );
-  return QUICK_VALUES.concat(custom);
+  return quickValues.slice().sort((a, b) => parseFloat(a) - parseFloat(b));
 }
 
 async function saveQuickValues() {
   const home = getCurrentHome();
-  if (home) home.quickValues = customQuickValues;
+  if (home) home.quickValues = quickValues;
   try {
-    await setDoc(homeDocRef(currentHomeId), { quickValues: customQuickValues }, { merge: true });
+    await setDoc(homeDocRef(currentHomeId), { quickValues }, { merge: true });
   } catch {
-    showError("Couldn't save your quick option. Try again.");
+    showError("Couldn't save your quick options. Try again.");
   }
 }
 
 async function addQuickValue(value) {
   const cleaned = String(value).replace(/[^0-9.]/g, '');
   if (cleaned === '' || parseFloat(cleaned) <= 0) return;
-  const already = getAllQuickValues().some((v) => parseFloat(v) === parseFloat(cleaned));
+  const already = quickValues.some((v) => parseFloat(v) === parseFloat(cleaned));
   if (!already) {
-    customQuickValues.push(cleaned);
+    quickValues.push(cleaned);
     await saveQuickValues();
   }
   applyValue(cleaned);
 }
 
 async function removeQuickValue(value) {
-  customQuickValues = customQuickValues.filter((v) => parseFloat(v) !== parseFloat(value));
+  quickValues = quickValues.filter((v) => parseFloat(v) !== parseFloat(value));
   await saveQuickValues();
   render();
 }
@@ -381,12 +381,10 @@ function render() {
   el('day-label').textContent = `${pad(selectedDay)} ${weekdayShort(year, month, selectedDay)}` +
     (selectedValue ? ` — ${fmtLitres(parseFloat(selectedValue))} L logged` : '');
 
-  const baseCount = QUICK_VALUES.length;
   const allValues = getAllQuickValues();
-  const chipParts = allValues.map((v, i) => {
+  const chipParts = allValues.map((v) => {
     const active = selectedValue && parseFloat(selectedValue) === parseFloat(v);
-    const isCustom = i >= baseCount;
-    return `<button class="chip${active ? ' active' : ''}${isCustom ? ' chip-custom' : ''}" data-value="${v}">${fmtLitres(parseFloat(v))} L</button>`;
+    return `<button class="chip chip-quick${active ? ' active' : ''}" data-value="${v}">${fmtLitres(parseFloat(v))} L</button>`;
   });
   if (selectedValue) chipParts.push(`<button class="chip-clear" id="clear-day">clear</button>`);
   chipParts.push(`<button class="chip other" id="other-btn">other</button>`);
@@ -395,7 +393,7 @@ function render() {
 
   el('quick-values').querySelectorAll('.chip[data-value]').forEach((btn) => {
     btn.addEventListener('click', () => { vibrate(); applyValue(btn.dataset.value); });
-    if (btn.classList.contains('chip-custom')) wireLongPressRemove(btn);
+    wireLongPressRemove(btn);
   });
   const clearBtn = el('clear-day');
   if (clearBtn) clearBtn.addEventListener('click', () => { vibrate(); applyValue(''); });
