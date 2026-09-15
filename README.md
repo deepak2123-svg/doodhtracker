@@ -83,10 +83,13 @@ Below the switcher there's a bottom nav bar with three tabs, scoped to
 whichever home is currently selected:
 
 - **Ledger** — tap a date on the calendar, then tap 2/3/4/5 litres or
-  "other" for a different amount. The invoice panel builds itself from
-  what you log, with a grand total at the bottom, and **Export PDF** /
-  **Export Excel** buttons to download that month's invoice as a PDF or
-  an `.xlsx` file.
+  "other" for a different amount. Tap the **+** tile to permanently pin
+  a new quick amount (e.g. 1.5 L) for that home — it's applied to the
+  selected day right away and stays as a tappable chip from then on.
+  Long-press a chip you added to remove it (the default 2/3/4/5 can't be
+  removed). The invoice panel builds itself from what you log, with a
+  grand total at the bottom, and **Export PDF** / **Export Excel**
+  buttons to download that month's invoice as a PDF or an `.xlsx` file.
 - **Pricing** — set your rate per litre along with the date it takes
   effect, and your dudhiya's name (shows on the invoice). If your
   milkman changes the price mid-month, just add the new rate with the

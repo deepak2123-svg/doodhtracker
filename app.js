@@ -24,6 +24,7 @@ let entries = {};
 let rate = 60;
 let rateHistory = []; // [{ date: 'YYYY-MM-DD', rate: number }, ...] sorted ascending by date
 let dudhiyaName = '';
+let customQuickValues = []; // extra litre amounts pinned by the user, per home
 let uid = null;
 let activeTab = 'ledger';
 let homes = [];
@@ -183,6 +184,7 @@ async function switchHome(homeId) {
   rateHistory = Array.isArray(home.rateHistory)
     ? home.rateHistory.slice().sort((a, b) => a.date.localeCompare(b.date))
     : [];
+  customQuickValues = Array.isArray(home.quickValues) ? home.quickValues.slice() : [];
   selectedDay = isCurrentMonth() ? today.getDate() : 1;
   closeHomeMenu();
   renderHomeBar();
@@ -249,6 +251,40 @@ async function addRateChange(newRate, effectiveDate, dudhiyaVal) {
   } catch {
     showError("Couldn't save settings. Try again.");
   }
+}
+
+function getAllQuickValues() {
+  const custom = customQuickValues.filter(
+    (v) => !QUICK_VALUES.some((base) => parseFloat(base) === parseFloat(v))
+  );
+  return QUICK_VALUES.concat(custom);
+}
+
+async function saveQuickValues() {
+  const home = getCurrentHome();
+  if (home) home.quickValues = customQuickValues;
+  try {
+    await setDoc(homeDocRef(currentHomeId), { quickValues: customQuickValues }, { merge: true });
+  } catch {
+    showError("Couldn't save your quick option. Try again.");
+  }
+}
+
+async function addQuickValue(value) {
+  const cleaned = String(value).replace(/[^0-9.]/g, '');
+  if (cleaned === '' || parseFloat(cleaned) <= 0) return;
+  const already = getAllQuickValues().some((v) => parseFloat(v) === parseFloat(cleaned));
+  if (!already) {
+    customQuickValues.push(cleaned);
+    await saveQuickValues();
+  }
+  applyValue(cleaned);
+}
+
+async function removeQuickValue(value) {
+  customQuickValues = customQuickValues.filter((v) => parseFloat(v) !== parseFloat(value));
+  await saveQuickValues();
+  render();
 }
 
 async function loadMonth(y, m) {
@@ -345,22 +381,62 @@ function render() {
   el('day-label').textContent = `${pad(selectedDay)} ${weekdayShort(year, month, selectedDay)}` +
     (selectedValue ? ` — ${fmtLitres(parseFloat(selectedValue))} L logged` : '');
 
-  const chipParts = QUICK_VALUES.map((v) => {
+  const baseCount = QUICK_VALUES.length;
+  const allValues = getAllQuickValues();
+  const chipParts = allValues.map((v, i) => {
     const active = selectedValue && parseFloat(selectedValue) === parseFloat(v);
-    return `<button class="chip${active ? ' active' : ''}" data-value="${v}">${v} L</button>`;
+    const isCustom = i >= baseCount;
+    return `<button class="chip${active ? ' active' : ''}${isCustom ? ' chip-custom' : ''}" data-value="${v}">${fmtLitres(parseFloat(v))} L</button>`;
   });
   if (selectedValue) chipParts.push(`<button class="chip-clear" id="clear-day">clear</button>`);
   chipParts.push(`<button class="chip other" id="other-btn">other</button>`);
+  chipParts.push(`<button class="chip add-quick" id="add-quick-btn" aria-label="Add a quick option">+</button>`);
   el('quick-values').innerHTML = chipParts.join('');
 
   el('quick-values').querySelectorAll('.chip[data-value]').forEach((btn) => {
     btn.addEventListener('click', () => { vibrate(); applyValue(btn.dataset.value); });
+    if (btn.classList.contains('chip-custom')) wireLongPressRemove(btn);
   });
   const clearBtn = el('clear-day');
   if (clearBtn) clearBtn.addEventListener('click', () => { vibrate(); applyValue(''); });
   el('other-btn').addEventListener('click', () => { vibrate(); showManualInput(); });
+  el('add-quick-btn').addEventListener('click', () => { vibrate(); showAddQuickInput(); });
 
   renderInvoice();
+}
+
+function wireLongPressRemove(btn) {
+  let timer = null;
+  let longPressed = false;
+  const start = () => {
+    longPressed = false;
+    timer = setTimeout(() => {
+      longPressed = true;
+      vibrate(20);
+      if (confirm(`Remove ${fmtLitres(parseFloat(btn.dataset.value))} L from your quick options?`)) {
+        removeQuickValue(btn.dataset.value);
+      }
+    }, 550);
+  };
+  const cancel = () => { clearTimeout(timer); };
+  btn.addEventListener('pointerdown', start);
+  btn.addEventListener('pointerup', cancel);
+  btn.addEventListener('pointerleave', cancel);
+  btn.addEventListener('pointercancel', cancel);
+  btn.addEventListener('click', (e) => { if (longPressed) { e.stopPropagation(); e.preventDefault(); } });
+}
+
+function showAddQuickInput() {
+  el('quick-values').insertAdjacentHTML('beforeend',
+    `<input id="add-quick-input" type="text" inputmode="decimal" placeholder="litres" />`);
+  const input = el('add-quick-input');
+  input.focus();
+  const commit = () => {
+    if (input.value !== '') addQuickValue(input.value);
+    else render();
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
 }
 
 function renderInvoice() {
