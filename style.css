@@ -349,7 +349,25 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
 .day-cell.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 .day-section { margin-bottom: 16px; }
-.day-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.day-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.edit-toggle {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
 
 .quick-values { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
@@ -368,31 +386,42 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
 .chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .chip.other { border-style: dashed; color: var(--muted); }
 
-.chip-quick { position: relative; }
-.chip-quick::after {
-  content: '';
-  position: absolute;
-  top: -3px;
-  right: -1px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--muted-light);
-  opacity: 0.55;
+.chip.add-quick {
+  border-style: dashed;
+  color: var(--muted);
 }
 
-.chip.add-quick {
-  width: 34px;
-  height: 34px;
-  padding: 0;
+.chip-editable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip-editable .chip-quick {
+  border-color: var(--error);
+  color: var(--error);
+  background: transparent;
+  cursor: default;
+  opacity: 0.85;
+}
+
+.chip-remove-x {
+  border: 1px solid var(--error);
+  background: transparent;
+  color: var(--error);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--muted-light);
-  border-style: dashed;
+  transition: transform 0.15s ease;
 }
+
+.chip-remove-x:active { transform: scale(0.9); }
 
 .chip-clear { border: none; background: transparent; color: var(--muted-light); font-size: 13px; cursor: pointer; padding: 7px 4px; }
 

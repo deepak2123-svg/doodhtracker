@@ -25,6 +25,7 @@ let rate = 60;
 let rateHistory = []; // [{ date: 'YYYY-MM-DD', rate: number }, ...] sorted ascending by date
 let dudhiyaName = '';
 let quickValues = []; // this home's tappable litre chips — starts from DEFAULT_QUICK_VALUES, fully editable
+let editingQuickValues = false;
 let uid = null;
 let activeTab = 'ledger';
 let homes = [];
@@ -189,6 +190,7 @@ async function switchHome(homeId) {
     : [];
   quickValues = Array.isArray(home.quickValues) ? home.quickValues.slice() : DEFAULT_QUICK_VALUES.slice();
   selectedDay = isCurrentMonth() ? today.getDate() : 1;
+  editingQuickValues = false;
   closeHomeMenu();
   renderHomeBar();
   await loadMonth(year, month);
@@ -373,55 +375,54 @@ function render() {
     btn.addEventListener('click', () => {
       vibrate();
       selectedDay = parseInt(btn.dataset.day, 10);
+      editingQuickValues = false;
       render();
     });
   });
 
   const selectedValue = entries[selectedDay];
-  el('day-label').textContent = `${pad(selectedDay)} ${weekdayShort(year, month, selectedDay)}` +
-    (selectedValue ? ` — ${fmtLitres(parseFloat(selectedValue))} L logged` : '');
+  el('day-label').innerHTML = `<span>${pad(selectedDay)} ${weekdayShort(year, month, selectedDay)}` +
+    (selectedValue ? ` — ${fmtLitres(parseFloat(selectedValue))} L logged` : '') +
+    `</span> <button id="edit-quick-toggle" class="edit-toggle">${editingQuickValues ? 'Done' : 'Edit options'}</button>`;
+  el('edit-quick-toggle').addEventListener('click', () => {
+    vibrate();
+    editingQuickValues = !editingQuickValues;
+    render();
+  });
 
   const allValues = getAllQuickValues();
   const chipParts = allValues.map((v) => {
-    const active = selectedValue && parseFloat(selectedValue) === parseFloat(v);
+    const active = !editingQuickValues && selectedValue && parseFloat(selectedValue) === parseFloat(v);
+    if (editingQuickValues) {
+      return `<span class="chip-editable">
+        <button class="chip chip-quick" data-value="${v}">${fmtLitres(parseFloat(v))} L</button>
+        <button class="chip-remove-x" data-remove="${v}" aria-label="Remove">&times;</button>
+      </span>`;
+    }
     return `<button class="chip chip-quick${active ? ' active' : ''}" data-value="${v}">${fmtLitres(parseFloat(v))} L</button>`;
   });
-  if (selectedValue) chipParts.push(`<button class="chip-clear" id="clear-day">clear</button>`);
-  chipParts.push(`<button class="chip other" id="other-btn">other</button>`);
-  chipParts.push(`<button class="chip add-quick" id="add-quick-btn" aria-label="Add a quick option">+</button>`);
+  if (!editingQuickValues) {
+    if (selectedValue) chipParts.push(`<button class="chip-clear" id="clear-day">clear</button>`);
+    chipParts.push(`<button class="chip other" id="other-btn">other</button>`);
+  }
+  chipParts.push(`<button class="chip add-quick" id="add-quick-btn">+ Add</button>`);
   el('quick-values').innerHTML = chipParts.join('');
 
-  el('quick-values').querySelectorAll('.chip[data-value]').forEach((btn) => {
-    btn.addEventListener('click', () => { vibrate(); applyValue(btn.dataset.value); });
-    wireLongPressRemove(btn);
-  });
-  const clearBtn = el('clear-day');
-  if (clearBtn) clearBtn.addEventListener('click', () => { vibrate(); applyValue(''); });
-  el('other-btn').addEventListener('click', () => { vibrate(); showManualInput(); });
+  if (editingQuickValues) {
+    el('quick-values').querySelectorAll('.chip-remove-x').forEach((btn) => {
+      btn.addEventListener('click', () => { vibrate(15); removeQuickValue(btn.dataset.remove); });
+    });
+  } else {
+    el('quick-values').querySelectorAll('.chip[data-value]').forEach((btn) => {
+      btn.addEventListener('click', () => { vibrate(); applyValue(btn.dataset.value); });
+    });
+    const clearBtn = el('clear-day');
+    if (clearBtn) clearBtn.addEventListener('click', () => { vibrate(); applyValue(''); });
+    el('other-btn').addEventListener('click', () => { vibrate(); showManualInput(); });
+  }
   el('add-quick-btn').addEventListener('click', () => { vibrate(); showAddQuickInput(); });
 
   renderInvoice();
-}
-
-function wireLongPressRemove(btn) {
-  let timer = null;
-  let longPressed = false;
-  const start = () => {
-    longPressed = false;
-    timer = setTimeout(() => {
-      longPressed = true;
-      vibrate(20);
-      if (confirm(`Remove ${fmtLitres(parseFloat(btn.dataset.value))} L from your quick options?`)) {
-        removeQuickValue(btn.dataset.value);
-      }
-    }, 550);
-  };
-  const cancel = () => { clearTimeout(timer); };
-  btn.addEventListener('pointerdown', start);
-  btn.addEventListener('pointerup', cancel);
-  btn.addEventListener('pointerleave', cancel);
-  btn.addEventListener('pointercancel', cancel);
-  btn.addEventListener('click', (e) => { if (longPressed) { e.stopPropagation(); e.preventDefault(); } });
 }
 
 function showAddQuickInput() {
@@ -520,6 +521,7 @@ async function goToMonth(delta) {
   month = m;
   year = y;
   selectedDay = isCurrentMonth() ? today.getDate() : 1;
+  editingQuickValues = false;
   await loadMonth(year, month);
   render();
 }
