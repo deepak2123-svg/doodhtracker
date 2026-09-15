@@ -68,8 +68,19 @@ Firebase only allows sign-in from domains you've approved:
 
 ## Using it
 
-Open your GitHub Pages URL, sign in with Google. There's a bottom nav
-bar with three tabs:
+Open your GitHub Pages URL, sign in with Google. At the top there's a
+**home switcher** — tap it to see all your homes (e.g. "My Home",
+"Parents' Home"), switch between them, or add a new one. Each home has
+its own dudhiya, rate history, calendar, and invoice, kept completely
+separate — logging milk for your parents' place never touches your own
+numbers. The home you last viewed is remembered on that device.
+
+If you were already using the app before this update, your existing
+data automatically moves into a home called "My Home" the first time
+you sign in after updating — nothing is lost.
+
+Below the switcher there's a bottom nav bar with three tabs, scoped to
+whichever home is currently selected:
 
 - **Ledger** — tap a date on the calendar, then tap 2/3/4/5 litres or
   "other" for a different amount. The invoice panel builds itself from

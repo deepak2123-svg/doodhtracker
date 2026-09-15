@@ -3,7 +3,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, collection, getDocs
+  getFirestore, doc, getDoc, setDoc, collection, getDocs, addDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
@@ -26,6 +26,8 @@ let rateHistory = []; // [{ date: 'YYYY-MM-DD', rate: number }, ...] sorted asce
 let dudhiyaName = '';
 let uid = null;
 let activeTab = 'ledger';
+let homes = [];
+let currentHomeId = null;
 
 const el = (id) => document.getElementById(id);
 
@@ -119,23 +121,116 @@ function showToast(message, onUndo) {
   toastTimer = setTimeout(() => { el('toast').style.display = 'none'; }, 5000);
 }
 
-// ---------- Firestore access ----------
+// ---------- Homes ----------
 
-async function loadRate() {
+function homeDocRef(homeId) { return doc(db, 'users', uid, 'homes', homeId); }
+function homeMonthsCol(homeId) { return collection(db, 'users', uid, 'homes', homeId, 'months'); }
+function homeMonthDocRef(homeId, y, m) { return doc(db, 'users', uid, 'homes', homeId, 'months', monthKey(y, m)); }
+
+function getCurrentHome() { return homes.find((h) => h.id === currentHomeId) || homes[0]; }
+
+function getStoredHomeId() {
+  try { return localStorage.getItem('doodh-current-home'); } catch { return null; }
+}
+function setStoredHomeId(id) {
+  try { localStorage.setItem('doodh-current-home', id); } catch { /* ignore */ }
+}
+
+async function migrateLegacyDataIfNeeded() {
   try {
-    const snap = await getDoc(doc(db, 'users', uid, 'settings', 'main'));
-    if (snap.exists()) {
-      const data = snap.data();
-      if (typeof data.rate === 'number') rate = data.rate;
-      if (typeof data.dudhiyaName === 'string') dudhiyaName = data.dudhiyaName;
-      if (Array.isArray(data.rateHistory)) {
-        rateHistory = data.rateHistory.slice().sort((a, b) => a.date.localeCompare(b.date));
-      }
+    let legacyRate = 60;
+    let legacyDudhiya = '';
+    let legacyHistory = [];
+    const legacySettingsSnap = await getDoc(doc(db, 'users', uid, 'settings', 'main'));
+    if (legacySettingsSnap.exists()) {
+      const d = legacySettingsSnap.data();
+      if (typeof d.rate === 'number') legacyRate = d.rate;
+      if (typeof d.dudhiyaName === 'string') legacyDudhiya = d.dudhiyaName;
+      if (Array.isArray(d.rateHistory)) legacyHistory = d.rateHistory;
+    }
+    const newHomeRef = await addDoc(collection(db, 'users', uid, 'homes'), {
+      name: 'My Home', dudhiyaName: legacyDudhiya, rate: legacyRate, rateHistory: legacyHistory
+    });
+    const legacyMonthsSnap = await getDocs(collection(db, 'users', uid, 'months'));
+    for (const m of legacyMonthsSnap.docs) {
+      await setDoc(doc(db, 'users', uid, 'homes', newHomeRef.id, 'months', m.id), m.data());
     }
   } catch {
-    showError("Couldn't load your rate. Check your connection.");
+    // best-effort migration; fall through to the empty-homes check below
   }
 }
+
+async function loadHomes() {
+  let snap = await getDocs(collection(db, 'users', uid, 'homes'));
+  if (snap.empty) {
+    await migrateLegacyDataIfNeeded();
+    snap = await getDocs(collection(db, 'users', uid, 'homes'));
+  }
+  if (snap.empty) {
+    // No legacy data either — brand new user, create a starter home.
+    await addDoc(collection(db, 'users', uid, 'homes'), { name: 'My Home', dudhiyaName: '', rate: 60, rateHistory: [] });
+    snap = await getDocs(collection(db, 'users', uid, 'homes'));
+  }
+  homes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+async function switchHome(homeId) {
+  currentHomeId = homeId;
+  setStoredHomeId(homeId);
+  const home = getCurrentHome();
+  rate = typeof home.rate === 'number' ? home.rate : 60;
+  dudhiyaName = home.dudhiyaName || '';
+  rateHistory = Array.isArray(home.rateHistory)
+    ? home.rateHistory.slice().sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+  selectedDay = isCurrentMonth() ? today.getDate() : 1;
+  closeHomeMenu();
+  renderHomeBar();
+  await loadMonth(year, month);
+  render();
+}
+
+async function addHome(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  vibrate(12);
+  const ref = await addDoc(collection(db, 'users', uid, 'homes'), {
+    name: trimmed, dudhiyaName: '', rate: 60, rateHistory: []
+  });
+  homes.push({ id: ref.id, name: trimmed, dudhiyaName: '', rate: 60, rateHistory: [] });
+  await switchHome(ref.id);
+}
+
+function renderHomeBar() {
+  const home = getCurrentHome();
+  el('home-switch-label').textContent = home ? home.name : 'Home';
+}
+
+function renderHomeMenu() {
+  el('home-menu-list').innerHTML = homes.map((h) => {
+    const active = h.id === currentHomeId;
+    return `<button class="home-menu-item${active ? ' active' : ''}" data-home-id="${h.id}">
+      <span>${h.name}</span><span class="check">&#10003;</span>
+    </button>`;
+  }).join('');
+  el('home-menu-list').querySelectorAll('.home-menu-item').forEach((btn) => {
+    btn.addEventListener('click', () => { vibrate(); switchHome(btn.dataset.homeId); });
+  });
+}
+
+function openHomeMenu() {
+  renderHomeMenu();
+  el('home-menu').style.display = 'block';
+}
+function closeHomeMenu() {
+  el('home-menu').style.display = 'none';
+}
+function toggleHomeMenu() {
+  const isOpen = el('home-menu').style.display === 'block';
+  if (isOpen) closeHomeMenu(); else openHomeMenu();
+}
+
+// ---------- Firestore access (scoped to current home) ----------
 
 async function addRateChange(newRate, effectiveDate, dudhiyaVal) {
   const next = rateHistory.filter((e) => e.date !== effectiveDate);
@@ -144,8 +239,10 @@ async function addRateChange(newRate, effectiveDate, dudhiyaVal) {
   rateHistory = next;
   rate = newRate; // fallback / most-recent value for legacy display
   dudhiyaName = dudhiyaVal;
+  const home = getCurrentHome();
+  if (home) { home.rate = newRate; home.dudhiyaName = dudhiyaVal; home.rateHistory = next; }
   try {
-    await setDoc(doc(db, 'users', uid, 'settings', 'main'), {
+    await setDoc(homeDocRef(currentHomeId), {
       rate: newRate, dudhiyaName: dudhiyaVal, rateHistory: next
     }, { merge: true });
     showError('');
@@ -157,7 +254,7 @@ async function addRateChange(newRate, effectiveDate, dudhiyaVal) {
 async function loadMonth(y, m) {
   showLoading(true);
   try {
-    const snap = await getDoc(doc(db, 'users', uid, 'months', monthKey(y, m)));
+    const snap = await getDoc(homeMonthDocRef(currentHomeId, y, m));
     entries = snap.exists() ? (snap.data().entries || {}) : {};
   } catch {
     entries = {};
@@ -168,7 +265,7 @@ async function loadMonth(y, m) {
 
 async function saveMonth(y, m) {
   try {
-    await setDoc(doc(db, 'users', uid, 'months', monthKey(y, m)), { entries }, { merge: false });
+    await setDoc(homeMonthDocRef(currentHomeId, y, m), { entries }, { merge: false });
     showError('');
   } catch {
     showError("Couldn't save. Try again.");
@@ -177,7 +274,7 @@ async function saveMonth(y, m) {
 
 async function loadAllTimeStats() {
   try {
-    const snapshot = await getDocs(collection(db, 'users', uid, 'months'));
+    const snapshot = await getDocs(homeMonthsCol(currentHomeId));
     let litres = 0;
     let amount = 0;
     const byMonth = {}; // { 'YYYY-MM': { litres, amount } }
@@ -506,6 +603,23 @@ el('save-rate-btn').addEventListener('click', saveRateFromPricing);
 el('rate-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRateFromPricing(); });
 el('dudhiya-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveRateFromPricing(); });
 
+el('home-switch-btn').addEventListener('click', (e) => { e.stopPropagation(); vibrate(); toggleHomeMenu(); });
+el('home-add-btn').addEventListener('click', () => {
+  const input = el('home-add-input');
+  addHome(input.value);
+  input.value = '';
+});
+el('home-add-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    addHome(e.target.value);
+    e.target.value = '';
+  }
+});
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.home-switch-wrap');
+  if (wrap && !wrap.contains(e.target)) closeHomeMenu();
+});
+
 el('sign-in-btn').addEventListener('click', async () => {
   try {
     await signInWithPopup(auth, provider);
@@ -521,12 +635,15 @@ onAuthStateChanged(auth, async (user) => {
     uid = user.uid;
     el('signed-out').style.display = 'none';
     el('app').style.display = 'block';
-    await loadRate();
-    await loadMonth(year, month);
-    render();
+    await loadHomes();
+    const storedId = getStoredHomeId();
+    const initialId = (storedId && homes.some((h) => h.id === storedId)) ? storedId : homes[0].id;
+    await switchHome(initialId);
     switchTab('ledger');
   } else {
     uid = null;
+    homes = [];
+    currentHomeId = null;
     el('app').style.display = 'none';
     el('signed-out').style.display = 'block';
   }
