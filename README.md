@@ -70,7 +70,11 @@ Firebase only allows sign-in from domains you've approved:
 
 Open your GitHub Pages URL, sign in with Google. At the top there's a
 **home switcher** — tap it to see all your homes (e.g. "My Home",
-"Parents' Home"), switch between them, or add a new one. Each home has
+"Parents' Home"), switch between them, add a new one, rename an
+existing one (pencil icon), or delete one you no longer need (trash
+icon — asks you to confirm, and deletes all of that home's logged
+months along with it; you always need at least one home, so the last
+remaining one can't be deleted). Each home has
 its own dudhiya, rate history, calendar, and invoice, kept completely
 separate — logging milk for your parents' place never touches your own
 numbers. The home you last viewed is remembered on that device.
@@ -79,7 +83,7 @@ If you were already using the app before this update, your existing
 data automatically moves into a home called "My Home" the first time
 you sign in after updating — nothing is lost.
 
-Below the switcher there's a bottom nav bar with three tabs, scoped to
+Below the switcher there's a bottom nav bar with two tabs, scoped to
 whichever home is currently selected:
 
 - **Ledger** — tap a date on the calendar, then tap a litre chip to log
@@ -96,15 +100,11 @@ whichever home is currently selected:
   being left out — with a grand total at the bottom, and **Export PDF**
   / **Export Excel** buttons to download that month's invoice as a PDF
   or an `.xlsx` file.
-- **Pricing** — set your rate per litre along with the date it takes
-  effect, and your dudhiya's name (shows on the invoice). If your
-  milkman changes the price mid-month, just add the new rate with the
-  date it started — days before that date keep the old rate, days from
-  then on use the new one, all correctly split within the same month's
-  invoice. Your rate history is listed below the form.
-- **Profile** — your Google account info, all-time litres and spend
-  across every month you've logged, a small bar chart of your last 6
-  months' spend, a Light/Dark/System appearance toggle, and sign out.
+- **Profile** — your Google account info, this home's **Pricing**
+  (rate per litre with an effective-from date and a rate-history
+  timeline, plus the dudhiya's name), all-time litres and spend across
+  every month you've logged, a small bar chart of your last 6 months'
+  spend, a Light/Dark/System appearance toggle, and sign out.
 
 Everything syncs to Firestore, so the same login on your phone or
 another computer shows the same data.

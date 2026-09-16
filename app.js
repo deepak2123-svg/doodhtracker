@@ -3,7 +3,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, collection, getDocs, addDoc
+  getFirestore, doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
@@ -30,6 +30,8 @@ let uid = null;
 let activeTab = 'ledger';
 let homes = [];
 let currentHomeId = null;
+let renamingHomeId = null;
+let confirmDeleteHomeId = null;
 
 const el = (id) => document.getElementById(id);
 
@@ -208,6 +210,50 @@ async function addHome(name) {
   await switchHome(ref.id);
 }
 
+async function renameHome(homeId, newName) {
+  const trimmed = newName.trim();
+  if (!trimmed) { renamingHomeId = null; renderHomeMenu(); return; }
+  try {
+    await setDoc(homeDocRef(homeId), { name: trimmed }, { merge: true });
+    showError('');
+  } catch {
+    showError("Couldn't rename this home. Try again.");
+  }
+  const home = homes.find((h) => h.id === homeId);
+  if (home) home.name = trimmed;
+  renamingHomeId = null;
+  if (homeId === currentHomeId) renderHomeBar();
+  renderHomeMenu();
+}
+
+async function deleteHome(homeId) {
+  if (homes.length <= 1) {
+    showError("You need at least one home — add another before deleting this one.");
+    confirmDeleteHomeId = null;
+    renderHomeMenu();
+    return;
+  }
+  try {
+    const monthsSnap = await getDocs(homeMonthsCol(homeId));
+    for (const m of monthsSnap.docs) { await deleteDoc(m.ref); }
+    await deleteDoc(homeDocRef(homeId));
+    showError('');
+  } catch {
+    showError("Couldn't delete this home. Try again.");
+    confirmDeleteHomeId = null;
+    renderHomeMenu();
+    return;
+  }
+  homes = homes.filter((h) => h.id !== homeId);
+  confirmDeleteHomeId = null;
+  if (currentHomeId === homeId) {
+    await switchHome(homes[0].id);
+    openHomeMenu();
+  } else {
+    renderHomeMenu();
+  }
+}
+
 function renderHomeBar() {
   const home = getCurrentHome();
   el('home-switch-label').textContent = home ? home.name : 'Home';
@@ -216,20 +262,80 @@ function renderHomeBar() {
 function renderHomeMenu() {
   el('home-menu-list').innerHTML = homes.map((h) => {
     const active = h.id === currentHomeId;
-    return `<button class="home-menu-item${active ? ' active' : ''}" data-home-id="${h.id}">
-      <span>${h.name}</span><span class="check">&#10003;</span>
-    </button>`;
+
+    if (confirmDeleteHomeId === h.id) {
+      return `<div class="home-menu-confirm">
+        <span>Delete "${h.name}" and all its data?</span>
+        <div class="home-menu-confirm-actions">
+          <button class="home-menu-confirm-btn danger" data-confirm-delete="${h.id}">Delete</button>
+          <button class="home-menu-confirm-btn" data-cancel-delete="${h.id}">Cancel</button>
+        </div>
+      </div>`;
+    }
+
+    if (renamingHomeId === h.id) {
+      return `<div class="home-menu-rename">
+        <input type="text" class="home-rename-input" data-rename-id="${h.id}" value="${h.name}" />
+        <button class="home-menu-icon-btn confirm" data-save-rename="${h.id}" aria-label="Save name">&#10003;</button>
+        <button class="home-menu-icon-btn" data-cancel-rename="${h.id}" aria-label="Cancel">&times;</button>
+      </div>`;
+    }
+
+    return `<div class="home-menu-item${active ? ' active' : ''}" data-home-id="${h.id}">
+      <button class="home-menu-select" data-select-home="${h.id}">
+        <span>${h.name}</span>${active ? '<span class="check">&#10003;</span>' : ''}
+      </button>
+      <button class="home-menu-icon-btn" data-rename="${h.id}" aria-label="Rename">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      </button>
+      <button class="home-menu-icon-btn" data-delete="${h.id}" aria-label="Delete">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M6 7h12l-1 13.5a1.5 1.5 0 01-1.5 1.5h-7a1.5 1.5 0 01-1.5-1.5L6 7zm3-3h6l1 2H8l1-2z"/></svg>
+      </button>
+    </div>`;
   }).join('');
-  el('home-menu-list').querySelectorAll('.home-menu-item').forEach((btn) => {
-    btn.addEventListener('click', () => { vibrate(); switchHome(btn.dataset.homeId); });
+
+  el('home-menu-list').querySelectorAll('[data-select-home]').forEach((btn) => {
+    btn.addEventListener('click', () => { vibrate(); switchHome(btn.dataset.selectHome); });
+  });
+  el('home-menu-list').querySelectorAll('[data-rename]').forEach((btn) => {
+    btn.addEventListener('click', () => { vibrate(); renamingHomeId = btn.dataset.rename; renderHomeMenu(); });
+  });
+  el('home-menu-list').querySelectorAll('[data-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => { vibrate(); confirmDeleteHomeId = btn.dataset.delete; renderHomeMenu(); });
+  });
+  el('home-menu-list').querySelectorAll('[data-save-rename]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      vibrate();
+      const input = document.querySelector(`.home-rename-input[data-rename-id="${btn.dataset.saveRename}"]`);
+      renameHome(btn.dataset.saveRename, input.value);
+    });
+  });
+  el('home-menu-list').querySelectorAll('[data-cancel-rename]').forEach((btn) => {
+    btn.addEventListener('click', () => { vibrate(); renamingHomeId = null; renderHomeMenu(); });
+  });
+  el('home-menu-list').querySelectorAll('.home-rename-input').forEach((input) => {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') renameHome(input.dataset.renameId, input.value);
+      if (e.key === 'Escape') { renamingHomeId = null; renderHomeMenu(); }
+    });
+  });
+  el('home-menu-list').querySelectorAll('[data-confirm-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => { vibrate(15); deleteHome(btn.dataset.confirmDelete); });
+  });
+  el('home-menu-list').querySelectorAll('[data-cancel-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => { vibrate(); confirmDeleteHomeId = null; renderHomeMenu(); });
   });
 }
 
 function openHomeMenu() {
+  renamingHomeId = null;
+  confirmDeleteHomeId = null;
   renderHomeMenu();
   el('home-menu').style.display = 'block';
 }
 function closeHomeMenu() {
+  renamingHomeId = null;
+  confirmDeleteHomeId = null;
   el('home-menu').style.display = 'none';
 }
 function toggleHomeMenu() {
@@ -343,13 +449,12 @@ async function loadAllTimeStats() {
 
 function switchTab(tab) {
   activeTab = tab;
-  ['ledger', 'pricing', 'profile'].forEach((t) => {
+  ['ledger', 'profile'].forEach((t) => {
     el(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
   });
   document.querySelectorAll('.nav-tab').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.tab === tab);
   });
-  if (tab === 'pricing') renderPricing();
   if (tab === 'profile') renderProfile();
 }
 
@@ -641,6 +746,7 @@ function renderProfile() {
   el('profile-photo').src = user.photoURL || '';
   el('profile-name').textContent = user.displayName || 'Milk ledger user';
   el('profile-email').textContent = user.email || '';
+  renderPricing();
   el('profile-total-litres').textContent = '…';
   el('profile-total-amount').textContent = '…';
   el('months-chart').innerHTML = '';
