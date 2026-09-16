@@ -365,10 +365,13 @@ function render() {
   for (let i = 0; i < firstWeekday; i++) cells.push('<div></div>');
   for (let d = 1; d <= totalDays; d++) {
     const classes = ['day-cell'];
-    if (entries[d]) classes.push('has-entry');
     if (isToday(d)) classes.push('is-today');
     if (d === selectedDay) classes.push('selected');
-    cells.push(`<button class="${classes.join(' ')}" data-day="${d}">${d}</button>`);
+    let dotClass = '';
+    if (entries[d] !== undefined) {
+      dotClass = parseFloat(entries[d]) > 0 ? 'day-dot milk' : 'day-dot no-milk';
+    }
+    cells.push(`<button class="${classes.join(' ')}" data-day="${d}">${d}<span class="${dotClass || 'day-dot'}"></span></button>`);
   }
   el('calendar').innerHTML = cells.join('');
   el('calendar').querySelectorAll('.day-cell').forEach((btn) => {
@@ -381,9 +384,13 @@ function render() {
   });
 
   const selectedValue = entries[selectedDay];
-  el('day-label').innerHTML = `<span>${pad(selectedDay)} ${weekdayShort(year, month, selectedDay)}` +
-    (selectedValue ? ` — ${fmtLitres(parseFloat(selectedValue))} L logged` : '') +
-    `</span> <button id="edit-quick-toggle" class="edit-toggle">${editingQuickValues ? 'Done' : 'Edit options'}</button>`;
+  const isNoMilkSelected = selectedValue !== undefined && parseFloat(selectedValue) === 0;
+  let statusText = '';
+  if (selectedValue !== undefined) {
+    statusText = isNoMilkSelected ? ' — No milk' : ` — ${fmtLitres(parseFloat(selectedValue))} L logged`;
+  }
+  el('day-label').innerHTML = `<span>${pad(selectedDay)} ${weekdayShort(year, month, selectedDay)}${statusText}</span> ` +
+    `<button id="edit-quick-toggle" class="edit-toggle">${editingQuickValues ? 'Done' : 'Edit options'}</button>`;
   el('edit-quick-toggle').addEventListener('click', () => {
     vibrate();
     editingQuickValues = !editingQuickValues;
@@ -392,7 +399,7 @@ function render() {
 
   const allValues = getAllQuickValues();
   const chipParts = allValues.map((v) => {
-    const active = !editingQuickValues && selectedValue && parseFloat(selectedValue) === parseFloat(v);
+    const active = !editingQuickValues && selectedValue !== undefined && parseFloat(selectedValue) === parseFloat(v);
     if (editingQuickValues) {
       return `<span class="chip-editable">
         <button class="chip chip-quick" data-value="${v}">${fmtLitres(parseFloat(v))} L</button>
@@ -402,7 +409,8 @@ function render() {
     return `<button class="chip chip-quick${active ? ' active' : ''}" data-value="${v}">${fmtLitres(parseFloat(v))} L</button>`;
   });
   if (!editingQuickValues) {
-    if (selectedValue) chipParts.push(`<button class="chip-clear" id="clear-day">clear</button>`);
+    chipParts.push(`<button class="chip no-milk${isNoMilkSelected ? ' active' : ''}" id="no-milk-btn">No milk</button>`);
+    if (selectedValue !== undefined) chipParts.push(`<button class="chip-clear" id="clear-day">clear</button>`);
     chipParts.push(`<button class="chip other" id="other-btn">other</button>`);
   }
   chipParts.push(`<button class="chip add-quick" id="add-quick-btn">+ Add</button>`);
@@ -416,6 +424,7 @@ function render() {
     el('quick-values').querySelectorAll('.chip[data-value]').forEach((btn) => {
       btn.addEventListener('click', () => { vibrate(); applyValue(btn.dataset.value); });
     });
+    el('no-milk-btn').addEventListener('click', () => { vibrate(); applyValue('0'); });
     const clearBtn = el('clear-day');
     if (clearBtn) clearBtn.addEventListener('click', () => { vibrate(); applyValue(''); });
     el('other-btn').addEventListener('click', () => { vibrate(); showManualInput(); });
@@ -449,20 +458,25 @@ function renderInvoice() {
 
   const days = Object.keys(entries)
     .map(Number)
-    .filter((d) => parseFloat(entries[d]) > 0)
+    .filter((d) => entries[d] !== undefined)
     .sort((a, b) => a - b);
 
   let totalLitres = 0;
   let totalAmount = 0;
+  let milkDaysCount = 0;
   const ratesUsed = new Set();
   const rows = days.map((d) => {
     const litres = parseFloat(entries[d]);
+    const isNoMilk = litres === 0;
     const dayRate = rateForDate(dateStr(year, month, d));
     const amount = litres * dayRate;
     totalLitres += litres;
     totalAmount += amount;
-    ratesUsed.add(dayRate);
-    return `<tr><td>${pad(d)} ${weekdayShort(year, month, d)}</td><td>${fmtLitres(litres)} L</td><td>&#8377;${fmtLitres(dayRate)}</td><td>${fmtRupees(amount)}</td></tr>`;
+    if (!isNoMilk) { milkDaysCount += 1; ratesUsed.add(dayRate); }
+    const rowClass = isNoMilk ? ' class="invoice-row-zero"' : '';
+    const rateCell = isNoMilk ? '\u2014' : `&#8377;${fmtLitres(dayRate)}`;
+    const litresCell = isNoMilk ? 'No milk' : `${fmtLitres(litres)} L`;
+    return `<tr${rowClass}><td>${pad(d)} ${weekdayShort(year, month, d)}</td><td>${litresCell}</td><td>${rateCell}</td><td>${fmtRupees(amount)}</td></tr>`;
   });
 
   el('invoice-body').innerHTML = rows.join('');
@@ -471,9 +485,11 @@ function renderInvoice() {
   el('invoice-total-amount').textContent = fmtRupees(totalAmount);
 
   const totalDaysInMonth = daysInMonth(year, month);
-  const avg = days.length > 0 ? totalLitres / days.length : 0;
-  el('invoice-days-logged').textContent = `${days.length} of ${totalDaysInMonth} days logged`;
-  el('invoice-avg').textContent = days.length > 0 ? `Average ${fmtLitres(avg)} L / logged day` : '';
+  const noMilkCount = days.length - milkDaysCount;
+  const avg = milkDaysCount > 0 ? totalLitres / milkDaysCount : 0;
+  el('invoice-days-logged').textContent = `${days.length} of ${totalDaysInMonth} days logged` +
+    (noMilkCount > 0 ? ` (${noMilkCount} no milk)` : '');
+  el('invoice-avg').textContent = milkDaysCount > 0 ? `Average ${fmtLitres(avg)} L / milk day` : '';
   el('invoice-rate').textContent = ratesUsed.size > 1
     ? `Rate changed mid-month \u2014 see per-day rate above`
     : `Rate: \u20B9${fmtLitres(currentRate())} / litre`;
@@ -503,9 +519,10 @@ function applyValue(value) {
   saveMonth(year, month);
   render();
 
-  if (cleaned === '' && wasSet) {
+  if (cleaned === '' && wasSet !== undefined) {
     const dayLabel = `${pad(selectedDay)} ${weekdayShort(year, month, selectedDay)}`;
-    showToast(`Cleared ${fmtLitres(parseFloat(wasSet))} L on ${dayLabel}`, () => {
+    const clearedLabel = parseFloat(wasSet) > 0 ? `${fmtLitres(parseFloat(wasSet))} L` : 'the no-milk mark';
+    showToast(`Cleared ${clearedLabel} on ${dayLabel}`, () => {
       entries[selectedDay] = wasSet;
       saveMonth(year, month);
       render();
@@ -542,7 +559,7 @@ function exportPdf() {
 function exportExcel() {
   const days = Object.keys(entries)
     .map(Number)
-    .filter((d) => parseFloat(entries[d]) > 0)
+    .filter((d) => entries[d] !== undefined)
     .sort((a, b) => a - b);
 
   const user = auth.currentUser;
@@ -560,11 +577,12 @@ function exportExcel() {
   let totalAmount = 0;
   days.forEach((d) => {
     const litres = parseFloat(entries[d]);
+    const isNoMilk = litres === 0;
     const dayRate = rateForDate(dateStr(year, month, d));
     const amount = litres * dayRate;
     totalLitres += litres;
     totalAmount += amount;
-    rows.push([`${pad(d)} ${weekdayShort(year, month, d)}`, litres, dayRate, Math.round(amount)]);
+    rows.push([`${pad(d)} ${weekdayShort(year, month, d)}`, isNoMilk ? 'No milk' : litres, isNoMilk ? '' : dayRate, Math.round(amount)]);
   });
 
   rows.push([]);

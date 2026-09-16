@@ -83,15 +83,19 @@ Below the switcher there's a bottom nav bar with three tabs, scoped to
 whichever home is currently selected:
 
 - **Ledger** — tap a date on the calendar, then tap a litre chip to log
-  it, or "other" for a one-off amount. Tap **+ Add** to permanently pin
-  a new quick amount (e.g. 1.5 L) for that home — it's applied to the
-  selected day right away and stays as a tappable chip from then on.
-  Tap **Edit options** next to the date to switch into edit mode, where
-  every chip (including the starting 2/3/4/5) gets a small × to remove
-  it; tap **Done** to go back to normal logging. The invoice panel
-  builds itself from what you log, with a grand total at the bottom,
-  and **Export PDF** / **Export Excel** buttons to download that
-  month's invoice as a PDF or an `.xlsx` file.
+  it, "No milk" if the dudhiya didn't come that day, or "other" for a
+  one-off amount. Logged days show a small dot on the calendar — green
+  for milk, grey for an explicit no-milk day — so you can see gaps at a
+  glance. Tap **+ Add** to permanently pin a new quick amount (e.g.
+  1.5 L) for that home — it's applied to the selected day right away
+  and stays as a tappable chip from then on. Tap **Edit options** next
+  to the date to switch into edit mode, where every chip (including the
+  starting 2/3/4/5) gets a small × to remove it; tap **Done** to go
+  back to normal logging. The invoice panel builds itself from what you
+  log — no-milk days show up as their own row with ₹0, rather than
+  being left out — with a grand total at the bottom, and **Export PDF**
+  / **Export Excel** buttons to download that month's invoice as a PDF
+  or an `.xlsx` file.
 - **Pricing** — set your rate per litre along with the date it takes
   effect, and your dudhiya's name (shows on the invoice). If your
   milkman changes the price mid-month, just add the new rate with the

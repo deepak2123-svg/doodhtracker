@@ -18,6 +18,7 @@ html {
   --accent-soft: #E4F1F2;
   --total: #1F4B4F;
   --error: #B23B3B;
+  --milk-green: #3FA65A;
   --shadow-1: rgba(31, 75, 79, 0.04);
   --shadow-2: rgba(31, 75, 79, 0.03);
 }
@@ -36,6 +37,7 @@ html {
     --accent-soft: #223B37;
     --total: #6FCFC3;
     --error: #E28080;
+    --milk-green: #5FCB79;
     --shadow-1: rgba(0, 0, 0, 0.25);
     --shadow-2: rgba(0, 0, 0, 0.2);
   }
@@ -54,6 +56,7 @@ html[data-theme="light"] {
   --accent-soft: #E4F1F2;
   --total: #1F4B4F;
   --error: #B23B3B;
+  --milk-green: #3FA65A;
   --shadow-1: rgba(31, 75, 79, 0.04);
   --shadow-2: rgba(31, 75, 79, 0.03);
 }
@@ -71,6 +74,7 @@ html[data-theme="dark"] {
   --accent-soft: #223B37;
   --total: #6FCFC3;
   --error: #E28080;
+  --milk-green: #5FCB79;
   --shadow-1: rgba(0, 0, 0, 0.25);
   --shadow-2: rgba(0, 0, 0, 0.2);
 }
@@ -270,6 +274,8 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
 
 .invoice-table td { padding: 7px 0; border-top: 1px solid var(--border-soft); color: var(--text); }
 
+.invoice-row-zero td { color: var(--muted-light); font-style: italic; }
+
 .invoice-total-row td {
   padding-top: 12px;
   border-top: 2px solid var(--total);
@@ -334,19 +340,33 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
 .day-cell {
   border: 1px solid transparent;
   border-radius: 8px;
-  padding: 6px 0;
+  padding: 6px 0 5px;
   font-size: 13px;
   color: var(--text);
   background: transparent;
   cursor: pointer;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   transition: all 0.15s ease;
 }
 
 .day-cell:active { transform: scale(0.92); }
-.day-cell.has-entry { background: var(--accent-soft); }
 .day-cell.is-today { border-color: var(--border); }
 .day-cell.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.day-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.day-dot.milk { background: var(--milk-green); }
+.day-dot.no-milk { background: var(--muted-light); }
 
 .day-section { margin-bottom: 16px; }
 .day-label {
@@ -385,6 +405,9 @@ h1 { font-size: clamp(18px, 4.5vw, 22px); font-weight: 600; margin: 0; color: va
 .chip:active { transform: scale(0.95); }
 .chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .chip.other { border-style: dashed; color: var(--muted); }
+
+.chip.no-milk { color: var(--muted); }
+.chip.no-milk.active { border-color: var(--muted); background: var(--border-soft); color: var(--text); font-weight: 600; }
 
 .chip.add-quick {
   border-style: dashed;
